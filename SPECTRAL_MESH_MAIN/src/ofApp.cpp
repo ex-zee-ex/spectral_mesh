@@ -14,14 +14,23 @@ bool inputswitch=1;
 
 float rescale=1;
 
-float sx=1;
-float ff=1.01;
-float xw=1.01;
-float yw=1.01;
-float jj=1.01;
-float kk=1.01;
-float ll=1;
-float tt=1;
+float az=0.0;
+float sx=0.0;
+float dc=0.0;
+float fv=.0;
+float gb=.0;
+float hn=.0;
+float jm=.0;
+float kk=.0;
+float ll=.0;
+float ylfo_amp=0.0;
+float ty=.0;
+
+float qw=0;
+float er=0;
+float ui=0;
+float op=0;
+
 
 float theta=0;
 
@@ -72,7 +81,7 @@ int height=480;
 
 
 
-bool wireframe_switch;
+bool wireframe_switch=0;
 bool bright_switch=0;
 
 bool invert_switch=0;
@@ -80,6 +89,8 @@ bool stroke_weight_switch=0;
 
 
 int scale=127;
+
+int scale_key=0;
 
 int y_lfo_switch=0;
 int x_lfo_switch=0;
@@ -238,11 +249,11 @@ void ofApp::draw() {
     if(invert_switch==1){ofBackground(255);}
     
     
-    shader_displace.setUniform1f("luma_key_level",c1);
+    shader_displace.setUniform1f("luma_key_level",c1+1.01*az);
     shader_displace.setUniform1f("amnt1",c2*100);
     
     ofVec2f xyztheta;
-    xyztheta.set(200*c2,200*c3);
+    xyztheta.set(200*(c2+qw),200*(c3+er));
     shader_displace.setUniform2f("xyztheta",xyztheta);
     shader_displace.setUniform1i("width",width);
     shader_displace.setUniform1i("height",height);
@@ -250,24 +261,30 @@ void ofApp::draw() {
     shader_displace.setUniform1i("invert_switch",invert_switch);
     
     //lfo1 for the xyz
-    z_lfo_arg+=c11;
-    x_lfo_arg+=c13;
-    
-    y_lfo_arg+=c15;
+    z_lfo_arg+=c11+dc;
+    x_lfo_arg+=c13+hn;
+    y_lfo_arg+=c15+ll;
    // x_lfo=sin(x_lfo_arg)*(1+127*c14);
-    shader_displace.setUniform1f("x_lfo_amp",200*c14);
-    shader_displace.setUniform1f("x_lfo_arg",x_lfo_arg);
-    shader_displace.setUniform1f("y_lfo_amp",200*c16);
-    shader_displace.setUniform1f("y_lfo_arg",y_lfo_arg);
-    shader_displace.setUniform1f("z_lfo_amp",c12*.25);
+	shader_displace.setUniform1f("z_lfo_amp",c12*.25+fv);
     shader_displace.setUniform1f("z_lfo_arg",z_lfo_arg);
-    shader_displace.setUniform1f("x_lfo_other",c5*height/10000.0);
-    shader_displace.setUniform1f("y_lfo_other",c6*width/10000.0);
+    shader_displace.setUniform1f("z_lfo_other",c4*.05+sx);
+   
+    shader_displace.setUniform1f("x_lfo_amp",ofGetWidth()*c14+jm);
+    shader_displace.setUniform1f("x_lfo_arg",x_lfo_arg);
+    shader_displace.setUniform1f("x_lfo_other",c5*height/10000.0+gb);
     
-    shader_displace.setUniform1f("z_lfo_other",c4*.05);
+    shader_displace.setUniform1f("y_lfo_amp",ofGetHeight()*c16+ylfo_amp);
+    shader_displace.setUniform1f("y_lfo_arg",y_lfo_arg);
+    shader_displace.setUniform1f("y_lfo_other",c6*width/10000.0+kk);
+    
+    
+    
+    
+    
+    
     
     ofVec2f xy_offset;
-    xy_offset.set(center_x_displace,center_y_displace);
+    xy_offset.set(center_x_displace+ty,center_y_displace+ui);
     shader_displace.setUniform2f("xy_offset",xy_offset);
     
     
@@ -304,7 +321,7 @@ void ofApp::draw() {
     glLineWidth(stroke_weight);
     
     ofPushMatrix();
-    ofTranslate(0,0,c7*480);
+    ofTranslate(0,0,c7*480 +op);
     //ofRotateXRad(rotate_x);
     if(wireframe_switch==0){
         vbo_mesh1.draw();
@@ -361,8 +378,12 @@ void ofApp::draw() {
     //each mesh has different scale ranges for optimizations
     //so just feed in c8+1 and rescale within
   
-	scale=(1.0-c8)*127+1.0;
+	scale=(1.0-c8)*127+1.0 +scale_key;
 	
+	if(scale>=127){scale=127;}
+	if(scale<=1){
+			scale=1;
+			}
     //scale=50;
     
     ofSetColor(255);
@@ -431,46 +452,96 @@ void ofApp::keyPressed(int key) {
    
     //if(key=='q'){sw1==0;}
     
-    if(key=='a'){rescale+=.01;}
-    if(key=='z'){rescale-=.01;}
+    if(key=='a'){az+=.01;}
+    if(key=='z'){az-=.01;}
     
-    if(key=='s'){sx+=1;}
-    if(key=='x'){sx-=1;}
+    //zflo biz
+    if(key=='s'){sx+=.0001;}
+    if(key=='x'){sx-=.0001;}
+    if(key=='d'){dc+=0.001;}
+    if(key=='c'){dc-=0.001;}
+    if(key=='f'){fv+=0.001;}
+    if(key=='v'){fv-=0.001;}
     
-    if(key=='d'){dd+=0.01;}
-    if(key=='c'){dd-=0.01;}
+    //ylfo biz
+    if(key=='g'){gb+=0.001;}
+    if(key=='b'){gb-=0.001;}
+    if(key=='h'){hn+=0.001;}
+    if(key=='n'){hn-=0.001;}
+    if(key=='j'){jm+=0.1;}
+    if(key=='m'){jm-=0.1;}
     
-    if(key=='f'){ff+=0.1;}
-    if(key=='v'){ff-=0.1;}
+    if(key=='k'){kk+=0.001;}
+    if(key==','){kk-=0.001;}
+    if(key=='l'){ll+=0.001;}
+    if(key=='.'){ll-=0.001;}
+    if(key==';'){ylfo_amp+=0.1;}
+    if(key=='/'){ylfo_amp-=0.1;}
     
-    if(key=='g'){xw+=0.01;}
-    if(key=='b'){xw-=0.01;}
-    if(key=='h'){yw+=0.01;}
-    if(key=='n'){yw-=0.01;}
+    
+    if(key=='t'){ty+=5;}
+    if(key=='y'){ty-=5;}
+    
+    if(key=='u'){ui+=5;}
+    if(key=='i'){ui-=5;}
+    
+    if(key=='o'){op+=5;}
+    if(key=='p'){op-=5;}
+    
+    if(key=='e'){er+=0.01;}
+    if(key=='r'){er-=0.01;}
+    
+    if(key=='q'){qw+=0.01;}
+    if(key=='w'){qw-=0.01;}
     
     
-    if(key=='j'){jj+=0.1;}
-    if(key=='m'){jj-=0.1;}
-    if(key=='k'){kk+=0.1;}
-    if(key==','){kk-=0.1;}
+    if(key==']'){scale_key+=1;}
+    if(key=='['){
+		scale_key-=1;
+		
+		}
     
-    if(key=='l'){ll+=0.01;}
-    if(key=='.'){ll-=0.01;}
-    
-    if(key=='t'){tt+=0.01;}
-    if(key=='y'){tt-=0.01;}
-    
-    if(key=='e'){ee+=0.1;}
-    if(key=='r'){ee-=0.1;}
-    
-    if(key=='1'){wireframe_switch=!wireframe_switch;}
+    if(key=='1'){luma_switch=!luma_switch;}
     if(key=='2'){bright_switch=!bright_switch;}
     if(key=='3'){invert_switch=!invert_switch;}
+    if(key=='4'){y_xmod_switch=!y_xmod_switch;}
+    if(key=='5'){weird_switch=!weird_switch;}
     
-    if(key=='0'){vertical_linemesh(scale);}
-    if(key=='9'){horizontal_linemesh(scale);}
-    if(key=='8'){trianglemesh(scale);}
-    if(key=='7'){gridmesh(scale);}
+    if(key=='6'){
+		z_lfo_switch++;
+		z_lfo_switch=z_lfo_switch%3;
+		
+		}
+		
+	if(key=='7'){
+		x_lfo_switch++;
+		x_lfo_switch=x_lfo_switch%3;
+		
+		}
+		
+	if(key=='8'){
+		y_lfo_switch++;
+		y_lfo_switch=y_lfo_switch%3;
+		
+		}
+		
+	
+    
+    if(key=='9'){vertical_linemesh(scale);}
+    if(key=='0'){horizontal_linemesh(scale);}
+    if(key=='-'){
+		trianglemesh(scale);
+		if(wireframe_switch==1){
+			wireframe_switch=0;
+			}
+		}
+    if(key=='='){
+		trianglemesh(scale);
+		if(wireframe_switch==0){
+			wireframe_switch=1;
+			}
+		
+		}
     
  
     

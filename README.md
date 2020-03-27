@@ -4,7 +4,7 @@ updated image: now supports keyboard controls and greater ranges for x and y lfo
 
 installing from the above folder to the waaave pool distro or raspbian openframeworks in general is totally doable, but pretty much only if you know what you are doing! i can't really walk yalls thru that stuffs but if yr interested in that kind of stuff you should look more into working with openframeworks and makefiles on raspbian!  for anyone who does not want to mess around with that sort of stuffs all u gots to do is get an sd card, get yr self a waaaave pool set up (either from my etsy shop or build yr own) and then get a spare sd card, download this image
 
-https://drive.google.com/open?id=1NsRDluCw_o4zZ7PW1BKLVcNrI0GXYMlsX 
+https://drive.google.com/open?id=17F22vRG6Px7G_FY8o7H4LyN7yDTSa4Ae
 
 and extract the .img, write the image to the sd card, plug it in and have fun!
 

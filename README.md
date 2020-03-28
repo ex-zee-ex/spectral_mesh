@@ -12,27 +12,12 @@ and extract the .img, write the image to the sd card, plug it in and have fun!
 known issues rn
 1. frame drops when you switch mesh styles, only lasts until another midi cc is activated tho.  so until i fix this when you switch mesh styles (cc 43, 44, 42, 41) keep one hand on the luma key knob and just twist it a lil bit while pressing the buttons and you shouldn't notice much of anything.  
 2. difficult to key around the thin lines in older video mixers.  i added a swtich on midi cc 45, when it is turned on the mesh resolution knob (midi cc 23) will also control line thickness, its pretty discrete but it seems to work pretty well with a wide range of video mixers (tested with roland, sony, videonics, and panasonics so far)
-3. i didn't post a manual yet!  yo i'll get this up before the first ones ship most definitely, in the meanwhile 
-ccs 16 lumakey
-ccs 17 bright-x displace
-ccs 18 bright-y displace
-19 zlfo period
-20 xlfo period
-21 ylfo period
-22 global zoom
-23 mesh resolution (all the way counter clockwise is maximum resolution, its not real time tho you have to hit one of the mesh style buttons to recalculate the resolution)/line thickness
-120/121 x y center positions, s button on -> x y global positions, m button on x y rotations
-122 zlfo frequency, buttons change slider ranges
-123 zlfo amplitude, buttons change waveshape
-124 xlfo frequency, buttons change slider ranges
-125 xlfo amplitude, buttons change waveshape
-126 ylfo frequency, buttons change slider ranges
-127 ylfo amplitude, buttons change waveshape
 
+full manual is over here
+https://andreijaycreativecoding.com/Spectral-Mesh-Manual
 
-46-different xy lfo interaction styles
-61-brightness to xy displace inversion
-59-invert rgb global
-62-switch lumakey black to lumakey white
+check out the video_waaaves fb group for discussion and updates on this and other soft/hard ware things i make!
+https://www.facebook.com/groups/440566853501750
+
 
 

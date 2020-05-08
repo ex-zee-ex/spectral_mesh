@@ -21,7 +21,7 @@ PAL usb input
 https://drive.google.com/open?id=15Etbi2IrIaQd-4GRyeaNkX3lS3WOrtwe
 
 PAL capture edition
-https://drive.google.com/open?id=11H6ngv7nBVCP2gkLJ1Lhml98O6k66REV
+https://drive.google.com/open?id=1_5KR6XMYir-fA6B5sRvLekNMWOZHc60g
 
 
 

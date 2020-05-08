@@ -14,6 +14,9 @@ and extract the .img, write the image to the sd card using a program like balena
 NTSC usb input
 https://drive.google.com/open?id=1e_IAbo57TYd1vskFFTdoCAUUB4c5NESm
 
+NTSC capture edition
+https://drive.google.com/open?id=1rsyEoubYUkpVQguLnruECxdrr4xV1L5e
+
 PAL usb input
 https://drive.google.com/open?id=15Etbi2IrIaQd-4GRyeaNkX3lS3WOrtwe
 

@@ -41,6 +41,8 @@ public:
     void horizontal_linemesh(int gridsize);
     void vertical_linemesh(int gridsize);
     
+    ofImage perlin_noise(float theta, float resolution, ofImage noise_image);
+    
     //----------------------------midibiz
     
 	void newMidiMessage(ofxMidiMessage& eventArgs);
@@ -65,6 +67,10 @@ public:
     
     ofxOMXCameraSettings settings;
     ofxOMXVideoGrabber videoGrabber;
+    
+    ofImage x_noise_image;
+    ofImage y_noise_image;
+    ofImage z_noise_image;
    
     
 };

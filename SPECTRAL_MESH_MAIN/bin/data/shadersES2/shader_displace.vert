@@ -10,7 +10,9 @@ attribute vec2 texcoord;
 varying vec2 texCoordVarying;
 uniform sampler2D tex0;
 
-
+uniform sampler2D x_noise_image;
+uniform sampler2D y_noise_image;
+uniform sampler2D z_noise_image;
 
 uniform vec2 xyztheta;
 uniform int bright_switch;
@@ -31,9 +33,13 @@ uniform int y_lfo_switch;
 uniform int x_lfo_switch;
 uniform int z_lfo_switch;
 
-uniform int y_xmod_switch;
-uniform int z_xmod_switch;
-uniform int x_xmod_switch;
+uniform int y_phasemod_switch;
+uniform int z_phasemod_switch;
+uniform int x_phasemod_switch;
+
+uniform int y_ringmod_switch;
+uniform int z_ringmod_switch;
+uniform int x_ringmod_switch;
 
 uniform int weird_switch;
 
@@ -42,7 +48,7 @@ float psuedo_random(float seed){
     return fract(sin(seed)*100.0);
 }
 
-float oscillate(float theta,int shape){
+float oscillate(float theta,int shape,int xyz){
     float osc=0.0;
     
     if(shape==0){
@@ -64,9 +70,20 @@ float oscillate(float theta,int shape){
     }
     
     
-    //noise
-    //notquite
-    //osc=psuedo_random(sin(theta));
+   if(shape==3){
+        //0 is x, 1 is y, 2 is z
+        if(xyz==0){
+            osc=2.0*(texture2D(x_noise_image,texCoordVarying*.5).r-.5);
+        }
+        
+        if(xyz==1){
+            osc=2.0*(texture2D(y_noise_image,texCoordVarying*.5).r-.5);
+        }
+        
+        if(xyz==2){
+            osc=2.0*(texture2D(z_noise_image,texCoordVarying*.5).r-.5);
+        }
+    }
     
     
     return osc;
@@ -101,35 +118,37 @@ void main(void)
     
     
     
-   // float x_lfo=x_lfo_amp*oscillate(x_lfo_arg+new_position.y*x_lfo_other,x_lfo_switch);
-	float x_lfo=0.0;
-    float y_lfo=y_lfo_amp*oscillate(y_lfo_arg+new_position.x*y_lfo_other,y_lfo_switch);
-    
-    float z_lfo=z_lfo_amp*oscillate(z_lfo_arg+z_lfo_other*distance(abs(new_position.xy),vec2(xy_offset.x/2.0,xy_offset.y/2.0)+.005*float(z_xmod_switch)*y_lfo),z_lfo_switch);
-    
-    new_position.xy=new_position.xy*(1.0-z_lfo);
-    
-    x_lfo=x_lfo_amp*oscillate(x_lfo_arg+new_position.y*x_lfo_other+1.0*z_lfo,x_lfo_switch);
-    //order of executing new_position.x is where the weird swtich comes in
-    
-    if(weird_switch==0){
-		new_position.x=new_position.x+xyztheta.x*bright+x_lfo;
-    }
-    y_lfo=y_lfo_amp*oscillate(y_lfo_arg+new_position.x*y_lfo_other+.01*float(y_xmod_switch)*x_lfo,y_lfo_switch);
-    
-    if(weird_switch==1){
-		new_position.x=new_position.x+xyztheta.x*bright+x_lfo;
-    }
- 
-    
-    new_position.y=new_position.y+xyztheta.y*bright+y_lfo;
-    
-    
-    
-    
    
     
+    //z biz biz
+    float x_lfo=x_lfo_amp*oscillate(x_lfo_arg+new_position.y*x_lfo_other,x_lfo_switch,1);
+    float y_lfo=(y_lfo_amp+float(y_ringmod_switch)*.01*x_lfo)*oscillate(
+		y_lfo_arg+new_position.x*y_lfo_other+float(y_phasemod_switch)*.01*x_lfo,y_lfo_switch,1
+		);
     
+    float z_lfo_amp_dummy=z_lfo_amp+float(z_ringmod_switch)*.0025*y_lfo;
+    float z_lfo_frequency=z_lfo_arg+z_lfo_other*distance(
+		abs(new_position.xy),vec2(xy_offset.x/2.0,xy_offset.y/2.0)
+		+float(z_phasemod_switch)*y_lfo
+		);
+    
+    float z_lfo=z_lfo_amp_dummy*oscillate(z_lfo_frequency, z_lfo_switch,2);
+   
+	new_position.xy=new_position.xy*(1.0-z_lfo);
+    
+    
+    //x biz biz
+    float x_lfo_amp_dummy=x_lfo_amp+float(x_ringmod_switch)*1000.0*z_lfo;
+    float x_lfo_frequency=x_lfo_arg+new_position.y*x_lfo_other+float(x_phasemod_switch)*10.0*z_lfo;
+    x_lfo=x_lfo_amp_dummy*oscillate(x_lfo_frequency,x_lfo_switch,0);
+    
+    new_position.x=new_position.x+xyztheta.x*bright+x_lfo;
+    
+    float y_lfo_amp_dummy=y_lfo_amp+float(y_ringmod_switch)*x_lfo;
+    float y_lfo_frequency=y_lfo_arg+new_position.x*y_lfo_other+float(y_phasemod_switch)*.01*x_lfo;
+    y_lfo=y_lfo_amp_dummy*oscillate(y_lfo_frequency,y_lfo_switch,1);
+    
+    new_position.y=new_position.y+xyztheta.y*bright+y_lfo;
     
 	new_position.x=new_position.x-xy_offset.x;
 	new_position.y=new_position.y-xy_offset.y;

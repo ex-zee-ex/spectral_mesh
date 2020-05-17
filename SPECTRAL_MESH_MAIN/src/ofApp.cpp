@@ -7,10 +7,10 @@
 
 #include <iostream>
 
-ofPolyline tetrahedron;
+
 
 //0 is picapture, 1 is usbinput
-bool inputswitch=1;
+bool inputswitch=0;
 
 float rescale=1;
 
@@ -88,7 +88,7 @@ bool invert_switch=0;
 bool stroke_weight_switch=0;
 
 
-int scale=127;
+int scale=100;
 
 int scale_key=0;
 
@@ -97,20 +97,16 @@ int x_lfo_switch=0;
 int z_lfo_switch=0;
 
 bool y_freq0=FALSE;
-bool y_freq1=FALSE;
-
+bool y_ringmod_switch=FALSE;
+bool y_phasemod_switch=FALSE;
 
 bool x_freq0=FALSE;
-bool x_freq1=FALSE;
-
+bool x_ringmod_switch=FALSE;
+bool x_phasemod_switch=FALSE;
 
 bool z_freq0=FALSE;
-bool z_freq1=FALSE;
-
-
-bool y_xmod_switch=FALSE;
-bool x_xmod_switch=FALSE;
-bool z_xmod_switch=FALSE;
+bool z_ringmod_switch=FALSE;
+bool z_phasemod_switch=FALSE;
 
 bool weird_switch=FALSE;
 
@@ -136,6 +132,8 @@ bool rotate_y_switch=1;
 bool global_y_displace_switch=1;
 bool center_y_displace_switch=0;
 bool luma_switch=0;
+
+bool b_w_switch=0;
 
 float stroke_weight=1;
 
@@ -206,8 +204,10 @@ void ofApp::setup() {
   
 
    
-    
-    
+    //so 1/4 size doggg
+    x_noise_image.allocate(180,120, OF_IMAGE_GRAYSCALE);
+	y_noise_image.allocate(180,120, OF_IMAGE_GRAYSCALE);
+    z_noise_image.allocate(180,120, OF_IMAGE_GRAYSCALE);
     
     
     
@@ -230,7 +230,10 @@ void ofApp::update() {
     
     /*midimessagesbiz**/
     midibiz();
-
+	
+	x_noise_image=perlin_noise(x_lfo_arg,c5,x_noise_image);
+    y_noise_image=perlin_noise(y_lfo_arg,c6,y_noise_image);
+    z_noise_image=perlin_noise(z_lfo_arg,c4,z_noise_image);
     
   
 }
@@ -248,17 +251,22 @@ void ofApp::draw() {
    
     if(invert_switch==1){ofBackground(255);}
     
+    shader_displace.setUniform1f("b_w_switch",b_w_switch);
+    
+    shader_displace.setUniformTexture("x_noise_image",x_noise_image.getTexture(),1);
+    shader_displace.setUniformTexture("y_noise_image",y_noise_image.getTexture(),2);
+    shader_displace.setUniformTexture("z_noise_image",z_noise_image.getTexture(),3);
     
     shader_displace.setUniform1f("luma_key_level",c1+1.01*az);
     shader_displace.setUniform1f("amnt1",c2*100);
     
     ofVec2f xyztheta;
-    xyztheta.set(200*(c2+qw),200*(c3+er));
+    xyztheta.set(100*(c2+qw),100*(c3+er));
     shader_displace.setUniform2f("xyztheta",xyztheta);
     shader_displace.setUniform1i("width",width);
     shader_displace.setUniform1i("height",height);
     shader_displace.setUniform1i("bright_switch",bright_switch);
-    shader_displace.setUniform1i("invert_switch",invert_switch);
+    shader_displace.setUniform1f("invert_switch",invert_switch);
     
     //lfo1 for the xyz
     z_lfo_arg+=c11+dc;
@@ -269,13 +277,13 @@ void ofApp::draw() {
     shader_displace.setUniform1f("z_lfo_arg",z_lfo_arg);
     shader_displace.setUniform1f("z_lfo_other",c4*.05+sx);
    
-    shader_displace.setUniform1f("x_lfo_amp",ofGetWidth()*c14+jm);
+    shader_displace.setUniform1f("x_lfo_amp",ofGetWidth()/4*c14+jm);
     shader_displace.setUniform1f("x_lfo_arg",x_lfo_arg);
-    shader_displace.setUniform1f("x_lfo_other",c5*height/10000.0+gb);
+    shader_displace.setUniform1f("x_lfo_other",c5*height/15000.0+gb);
     
-    shader_displace.setUniform1f("y_lfo_amp",ofGetHeight()*c16+ylfo_amp);
+    shader_displace.setUniform1f("y_lfo_amp",ofGetHeight()/4*c16+ylfo_amp);
     shader_displace.setUniform1f("y_lfo_arg",y_lfo_arg);
-    shader_displace.setUniform1f("y_lfo_other",c6*width/10000.0+kk);
+    shader_displace.setUniform1f("y_lfo_other",c6*width/15000.0+kk);
     
     
     
@@ -292,9 +300,13 @@ void ofApp::draw() {
     shader_displace.setUniform1i("x_lfo_switch",x_lfo_switch);
     shader_displace.setUniform1i("z_lfo_switch",z_lfo_switch);
     
-    shader_displace.setUniform1i("y_xmod_switch",y_xmod_switch);
-    shader_displace.setUniform1i("x_xmod_switch",x_xmod_switch);
-    shader_displace.setUniform1i("z_xmod_switch",z_xmod_switch);
+    shader_displace.setUniform1i("y_phasemod_switch",y_phasemod_switch);
+    shader_displace.setUniform1i("x_phasemod_switch",x_phasemod_switch);
+    shader_displace.setUniform1i("z_phasemod_switch",z_phasemod_switch);
+    
+    shader_displace.setUniform1i("y_ringmod_switch",y_ringmod_switch);
+    shader_displace.setUniform1i("x_ringmod_switch",x_ringmod_switch);
+    shader_displace.setUniform1i("z_ringmod_switch",z_ringmod_switch);
     
     shader_displace.setUniform1i("weird_switch",weird_switch);
     shader_displace.setUniform1i("luma_switch",luma_switch);
@@ -361,14 +373,15 @@ void ofApp::draw() {
     ofRotateXRad(rotate_x);
     ofRotateYRad(rotate_y);
     ofRotateZRad(rotate_capture_z);
-    fbo0.draw(-ofGetWidth()/2+global_x_displace,-ofGetHeight()/2+global_y_displace-80,720,640);
+    fbo0.draw(-ofGetWidth()/2+global_x_displace,-ofGetHeight()/2+global_y_displace,720,480);
     ofPopMatrix();
    
     
+    //y_noise_image.draw(0,0,720,480);
     //switch for this too maybe
     
     fbo0.begin();
-    ofClear(0,0,0,255);
+   // ofClear(0,0,0,255);
     fbo0.end();
    
 	
@@ -380,10 +393,12 @@ void ofApp::draw() {
   
 	scale=(1.0-c8)*127+1.0 +scale_key;
 	
+	
 	if(scale>=127){scale=127;}
 	if(scale<=1){
 			scale=1;
 			}
+			
     //scale=50;
     
     ofSetColor(255);
@@ -394,7 +409,29 @@ void ofApp::draw() {
    
 }
 
+//+---------------------------------------------------------------
 
+ofImage ofApp::perlin_noise(float theta, float resolution, ofImage noise_image){
+    
+    //float noiseScale = ofMap(mouseX, 0, ofGetWidth(), 0, 0.1);
+    //float noiseVel = ofGetElapsedTimef();
+    resolution=resolution*.05;
+    theta=theta*.1;
+    ofPixels & pixels = noise_image.getPixels();
+    int w = noise_image.getWidth();
+    int h = noise_image.getHeight();
+    for(int y=0; y<h; y++) {
+        for(int x=0; x<w; x++) {
+            int i = y * w + x;
+            float noiseVelue = ofNoise(x * resolution, y * resolution, theta);
+            pixels[i] = 255 * noiseVelue;
+        }
+    }
+    
+    
+    noise_image.update();
+    return noise_image;
+}
 
 //--------------------------------------------------------------
 void ofApp::exit() {
@@ -504,24 +541,24 @@ void ofApp::keyPressed(int key) {
     if(key=='1'){luma_switch=!luma_switch;}
     if(key=='2'){bright_switch=!bright_switch;}
     if(key=='3'){invert_switch=!invert_switch;}
-    if(key=='4'){y_xmod_switch=!y_xmod_switch;}
-    if(key=='5'){weird_switch=!weird_switch;}
+    if(key=='4'){}
+    if(key=='5'){b_w_switch=!b_w_switch;}
     
     if(key=='6'){
 		z_lfo_switch++;
-		z_lfo_switch=z_lfo_switch%3;
+		z_lfo_switch=z_lfo_switch%4;
 		
 		}
 		
 	if(key=='7'){
 		x_lfo_switch++;
-		x_lfo_switch=x_lfo_switch%3;
+		x_lfo_switch=x_lfo_switch%4;
 		
 		}
 		
 	if(key=='8'){
 		y_lfo_switch++;
-		y_lfo_switch=y_lfo_switch%3;
+		y_lfo_switch=y_lfo_switch%4;
 		
 		}
 		
@@ -546,9 +583,14 @@ void ofApp::keyPressed(int key) {
  
     
     
-    
-    
-   
+    //ring mod
+   if(key=='!'){z_ringmod_switch=!z_ringmod_switch;}
+   if(key=='@'){x_ringmod_switch=!x_ringmod_switch;}
+   if(key=='#'){y_ringmod_switch=!y_ringmod_switch;}
+
+   if(key=='$'){z_phasemod_switch=!z_phasemod_switch;}
+   if(key=='%'){x_phasemod_switch=!x_phasemod_switch;}
+   if(key=='^'){y_phasemod_switch=!y_phasemod_switch;}
 }
 //--------------
 //this makes a mesh of a grid
@@ -691,6 +733,7 @@ void ofApp:: trianglemesh(int gridsize){
 //_-_---_-----------
 //this makes a mesh of a line horizontal
 void ofApp:: horizontal_linemesh(int gridsize){
+	int new_gridsize=gridsize*2;
     mesh1.clearVertices();
     mesh1.clearTexCoords();
     ofVec3f Q_vertex1;
@@ -700,18 +743,18 @@ void ofApp:: horizontal_linemesh(int gridsize){
     ofVec2f Q_tex1;
     ofVec2f Q_tex2;
    
-    for(int i=0;i<gridsize;i++){
-        for(int j=0;j<gridsize;j++){
-            int x0=j*width/gridsize;
-            int x1=(j+1)*width/gridsize;
-            int y0=i*height/gridsize;
+    for(int i=0;i<new_gridsize;i++){
+        for(int j=0;j<new_gridsize;j++){
+            int x0=j*width/new_gridsize;
+            int x1=(j+1)*width/new_gridsize;
+            int y0=i*height/new_gridsize;
            // int y1=(i+1)*height/gridsize;
             
             Q_vertex1.set(x0,y0,0);
             Q_vertex2.set(x1,y0,0);
             
             
-            rescale=1.0/gridsize;
+            rescale=1.0/new_gridsize;
             float tex_x0=j*rescale;
             float tex_x1=(j+1)*rescale;
             float tex_y0=i*rescale;
@@ -741,6 +784,7 @@ void ofApp:: horizontal_linemesh(int gridsize){
 
 //this makes a mesh of a line vertical
 void ofApp:: vertical_linemesh(int gridsize){
+	int new_gridsize=gridsize*2;
     mesh1.clearVertices();
     mesh1.clearTexCoords();
     ofVec3f Q_vertex1;
@@ -750,17 +794,17 @@ void ofApp:: vertical_linemesh(int gridsize){
     ofVec2f Q_tex1;
     ofVec2f Q_tex2;
     
-    for(int i=0;i<gridsize;i++){
-        for(int j=0;j<gridsize;j++){
-            int x0=i*width/gridsize;
+    for(int i=0;i<new_gridsize;i++){
+        for(int j=0;j<new_gridsize;j++){
+            int x0=i*width/new_gridsize;
            // int x1=(i+1)*width/gridsize;
-            int y0=j*height/gridsize;
-            int y1=(j+1)*height/gridsize;
+            int y0=j*height/new_gridsize;
+            int y1=(j+1)*height/new_gridsize;
             
             Q_vertex1.set(x0,y0,0);
             Q_vertex2.set(x0,y1,0);
             
-            rescale=1.0/gridsize;
+            rescale=1.0/new_gridsize;
             float tex_x0=i*rescale;
             float tex_y0=j*rescale;
             float tex_y1=(j+1)*rescale;
@@ -997,15 +1041,13 @@ void ofApp:: midibiz(){
                 }
                 
                 if(message.control==122){
-                    c11=.01*(message.value-63.0)/63.00;
+                    c11=.1*(message.value-63.0)/63.00;
                     //c11=(message.value)/127.00;
                     
                     if(z_freq0==TRUE){
-                        c11=.1*(message.value-63.0)/63.0;
-                    }
-                    if(z_freq1==TRUE){
                         c11=(message.value-63.0)/63.0;
                     }
+                  
                    
 
                 }
@@ -1018,15 +1060,13 @@ void ofApp:: midibiz(){
                 }
                 
                 if(message.control==124){
-                    c13=.01*(message.value-63.0)/63.00;
+                    c13=.1*(message.value-63.0)/63.00;
                     //c13=(message.value)/127.00;
                     
                     if(x_freq0==TRUE){
-                        c13=.1*(message.value-63.0)/63.0;
-                    }
-                    if(x_freq1==TRUE){
                         c13=(message.value-63.0)/63.0;
                     }
+                   
                    
 
                     
@@ -1038,15 +1078,13 @@ void ofApp:: midibiz(){
                 }
                 
                 if(message.control==126){
-                    c15=.01*(message.value-63.0)/63.0;
+                    c15=.1*(message.value-63.0)/63.0;
                     //c15=(message.value)/127.00;
                     
                     if(y_freq0==TRUE){
-                        c15=.1*(message.value-63.0)/63.0;
-                    }
-                    if(y_freq1==TRUE){
                         c15=(message.value-63.0)/63.0;
                     }
+                   
                     
                     
                 }
@@ -1074,21 +1112,21 @@ void ofApp:: midibiz(){
                 
                 if(message.control==54){
                     if(message.value==127){
-                        y_freq1=TRUE;
+                        y_ringmod_switch=TRUE;
                     }
                     
                     if(message.value==0){
-                        y_freq1=FALSE;
+                        y_ringmod_switch=FALSE;
                     }
                 }
                 
                 if(message.control==70){
                     if(message.value==127){
-                        y_xmod_switch=TRUE;
+                        y_phasemod_switch=TRUE;
                     }
                     
                     if(message.value==0){
-                        y_xmod_switch=FALSE;
+                        y_phasemod_switch=FALSE;
                     }
                 }
 
@@ -1106,21 +1144,21 @@ void ofApp:: midibiz(){
                 
                 if(message.control==52){
                     if(message.value==127){
-                        x_freq1=TRUE;
+                        x_ringmod_switch=TRUE;
                     }
                     
                     if(message.value==0){
-                        x_freq1=FALSE;
+                        x_ringmod_switch=FALSE;
                     }
                 }
                 
                 if(message.control==68){
                     if(message.value==127){
-                        x_xmod_switch=TRUE;
+                        x_phasemod_switch=TRUE;
                     }
                     
                     if(message.value==0){
-                        x_xmod_switch=FALSE;
+                        x_phasemod_switch=FALSE;
                     }
                 }
                 
@@ -1138,21 +1176,21 @@ void ofApp:: midibiz(){
                 
                 if(message.control==50){
                     if(message.value==127){
-                        z_freq1=TRUE;
+                        z_ringmod_switch=TRUE;
                     }
                     
                     if(message.value==0){
-                        z_freq1=FALSE;
+                        z_ringmod_switch=FALSE;
                     }
                 }
                 
                 if(message.control==66){
                     if(message.value==127){
-                        z_xmod_switch=TRUE;
+                        z_phasemod_switch=TRUE;
                     }
                     
                     if(message.value==0){
-                        z_xmod_switch=FALSE;
+                        z_phasemod_switch=FALSE;
                     }
                 }
 
@@ -1224,6 +1262,18 @@ void ofApp:: midibiz(){
                 }
                 
                 
+                if(message.control==69){
+                    if(message.value==127){
+                        x_lfo_switch=3;
+                       
+                    }
+                    if(message.value==0){
+                        x_lfo_switch=0;
+                       
+                    }
+                    
+                }
+                
                 if(message.control==35){
                     
                     if(message.value==127){
@@ -1249,17 +1299,28 @@ void ofApp:: midibiz(){
                     
                 }
                 
+                 if(message.control==67){
+                    if(message.value==127){
+                        z_lfo_switch=3;
+                        
+                    }
+                    if(message.value==0){
+                        z_lfo_switch=0;
+                        
+                    }
+                    
+                }
                 
                 
                 
                 //weird_switch
                 if(message.control==46){
                     if(message.value==127){
-                        weird_switch=1;
+                        b_w_switch=1;
                         
                     }
                     if(message.value==0){
-                        weird_switch=0;
+                        b_w_switch=0;
                         
                     }
                     

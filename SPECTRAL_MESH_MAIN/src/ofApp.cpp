@@ -1,6 +1,7 @@
 
 
-
+//add the midi info
+//fix up the reset switch and parameter locks to include everything
 
 #include "ofApp.h"
 
@@ -10,7 +11,12 @@
 
 
 //0 is picapture, 1 is usbinput
-bool inputswitch=0;
+//this is only relevant for folks with the now discontinued capture editions
+//or their own picapture sd1s.  most people can just ignore this switch!
+bool inputswitch=1;
+
+
+int hdmi_aspect_ratio_switch=0;
 
 float rescale=1;
 
@@ -143,6 +149,42 @@ float stroke_weight=1;
 //2 is vertical lines
 int mesh_type=0;
 
+
+ofFbo aspect_fix_fbo;
+
+
+const int p_lock_size=240;
+
+bool p_lock_record_switch=0;
+
+bool p_lock_erase=0;
+
+//maximum number of p_locks available...maybe there can be one for every knob
+//for whatever wacky reason the last member of this array of arrays has a glitch
+//so i guess just make an extra array and forget about it for now
+const int p_lock_number=17;
+
+//so how we will organize the p_locks is in multidimensional arrays
+//to access the data at timestep x for p_lock 2 (remember counting from 0) we use p_lock[2][x]
+float p_lock[p_lock_number][p_lock_size];
+
+
+//smoothing parameters(i think for all of these we can array both the arrays and the floats
+//for now let us just try 1 smoothing parameter for everything.
+float p_lock_smooth=.5;
+
+
+//and then lets try an array of floats for storing the smoothed values
+float p_lock_smoothed[p_lock_number];
+
+
+//turn on and off writing to the array
+bool p_lock_0_switch=1;
+
+//global counter for all the locks
+int p_lock_increment=0;
+
+
 //--------------------------------------------------------------
 void ofApp::setup() {
     ofSetFrameRate(30);
@@ -157,6 +199,7 @@ void ofApp::setup() {
 
 	
 	if(inputswitch==1){
+		cam1.setDesiredFrameRate(30);
 		cam1.initGrabber(width,height);
 	}
 	//ofSetLogLevel(OF_LOG_VERBOSE);
@@ -188,7 +231,12 @@ void ofApp::setup() {
     
     /*******/
     
+    aspect_fix_fbo.allocate(width,height);
+    aspect_fix_fbo.begin();
+    ofClear(0,0,0,255);
+    aspect_fix_fbo.end();
     
+   
    
     
     //framebufferbiz
@@ -210,7 +258,16 @@ void ofApp::setup() {
     z_noise_image.allocate(180,120, OF_IMAGE_GRAYSCALE);
     
     
+    //p_lock biz
+	for(int i=0;i<p_lock_number;i++){
+        
+        for(int j=0;j<p_lock_size;j++){
+            
+            p_lock[i][j]=0;
+            
+        }//endplocksize
     
+    }//endplocknumber
     
     
 }
@@ -220,6 +277,14 @@ void ofApp::update() {
 
   if(inputswitch==1){
 		cam1.update();
+		
+		 //corner crop and stretch to preserve hd aspect ratio
+		if(hdmi_aspect_ratio_switch==1){
+			aspect_fix_fbo.begin();
+			cam1.draw(0,0,853,480);
+			aspect_fix_fbo.end();
+			
+		}
 	}
 	
 	if(inputswitch==0){
@@ -228,6 +293,8 @@ void ofApp::update() {
 		
 	}
     
+    
+    
     /*midimessagesbiz**/
     midibiz();
 	
@@ -235,12 +302,41 @@ void ofApp::update() {
     y_noise_image=perlin_noise(y_lfo_arg,c6,y_noise_image);
     z_noise_image=perlin_noise(z_lfo_arg,c4,z_noise_image);
     
+    
+    for(int i=0;i<p_lock_number;i++){
+        p_lock_smoothed[i]=p_lock[i][p_lock_increment]*(1.0f-p_lock_smooth)+p_lock_smoothed[i]*p_lock_smooth;
+        
+        if(abs(p_lock_smoothed[i])<.05){p_lock_smoothed[i]=0;}
+        
+        
+    }
   
 }
 
 //--------------------------------------------------------------
 void ofApp::draw() {
     
+    
+    //dummy variables
+    float d_luma_key_level=p_lock_smoothed[0]+1.01*az;
+    float d_x=100.0*(p_lock_smoothed[1]+qw);
+    float d_y=100.0*(p_lock_smoothed[2]+er);
+    float d_z_other=.05*p_lock_smoothed[3]+sx;
+    float d_x_other=height/15000.0*p_lock_smoothed[4]+gb;
+    float d_y_other=width/15000.0*p_lock_smoothed[5]+kk;
+    float d_zoom=p_lock_smoothed[6]*480+op;
+    float d_scale=(1.0-p_lock_smoothed[7])*126.0+1.0+scale_key;
+
+	float d_z_lfo_arg=p_lock_smoothed[10]+dc;
+    float d_x_lfo_arg=p_lock_smoothed[12]+hn;
+    float d_y_lfo_arg=p_lock_smoothed[14]+ll;
+
+    float d_center_x=p_lock_smoothed[8]+ty;
+    float d_center_y=p_lock_smoothed[9]+ui;
+    float d_z_lfo_amp=.25*p_lock_smoothed[11]+fv;   
+    float d_x_lfo_amp=ofGetWidth()*.25*p_lock_smoothed[13]+jm;   
+    float d_y_lfo_amp=ofGetHeight()*.25*p_lock_smoothed[15]+ylfo_amp;
+    //float d_y_lfo_amp=ofGetHeight()*.25*c6+ylfo_amp;
     
    
   
@@ -257,33 +353,39 @@ void ofApp::draw() {
     shader_displace.setUniformTexture("y_noise_image",y_noise_image.getTexture(),2);
     shader_displace.setUniformTexture("z_noise_image",z_noise_image.getTexture(),3);
     
-    shader_displace.setUniform1f("luma_key_level",c1+1.01*az);
-    shader_displace.setUniform1f("amnt1",c2*100);
     
-    ofVec2f xyztheta;
-    xyztheta.set(100*(c2+qw),100*(c3+er));
-    shader_displace.setUniform2f("xyztheta",xyztheta);
+    
+    shader_displace.setUniform1f("luma_key_level",d_luma_key_level);
+    //shader_displace.setUniform1f("amnt1",p_lock_smoothed[1]);
+    
+    ofVec2f xy;
+    xy.set(d_x,d_y);
+    shader_displace.setUniform2f("xyztheta",xy);
     shader_displace.setUniform1i("width",width);
     shader_displace.setUniform1i("height",height);
     shader_displace.setUniform1i("bright_switch",bright_switch);
     shader_displace.setUniform1f("invert_switch",invert_switch);
     
-    //lfo1 for the xyz
-    z_lfo_arg+=c11+dc;
-    x_lfo_arg+=c13+hn;
-    y_lfo_arg+=c15+ll;
-   // x_lfo=sin(x_lfo_arg)*(1+127*c14);
-	shader_displace.setUniform1f("z_lfo_amp",c12*.25+fv);
-    shader_displace.setUniform1f("z_lfo_arg",z_lfo_arg);
-    shader_displace.setUniform1f("z_lfo_other",c4*.05+sx);
-   
-    shader_displace.setUniform1f("x_lfo_amp",ofGetWidth()/4*c14+jm);
-    shader_displace.setUniform1f("x_lfo_arg",x_lfo_arg);
-    shader_displace.setUniform1f("x_lfo_other",c5*height/15000.0+gb);
     
-    shader_displace.setUniform1f("y_lfo_amp",ofGetHeight()/4*c16+ylfo_amp);
+    
+    //lfo1 for the xyz
+    z_lfo_arg+=d_z_lfo_arg;
+    x_lfo_arg+=d_x_lfo_arg;
+    y_lfo_arg+=d_y_lfo_arg;
+   // x_lfo=sin(x_lfo_arg)*(1+127*c14);
+	shader_displace.setUniform1f("z_lfo_amp",d_z_lfo_amp);
+    shader_displace.setUniform1f("z_lfo_arg",z_lfo_arg);
+    shader_displace.setUniform1f("z_lfo_other",d_z_other);
+   
+    shader_displace.setUniform1f("x_lfo_amp",d_x_lfo_amp);
+    shader_displace.setUniform1f("x_lfo_arg",x_lfo_arg);
+    shader_displace.setUniform1f("x_lfo_other", d_x_other);
+    
+    shader_displace.setUniform1f("y_lfo_amp",d_y_lfo_amp);
     shader_displace.setUniform1f("y_lfo_arg",y_lfo_arg);
-    shader_displace.setUniform1f("y_lfo_other",c6*width/15000.0+kk);
+    shader_displace.setUniform1f("y_lfo_other", d_y_other);
+    
+    
     
     
     
@@ -292,7 +394,7 @@ void ofApp::draw() {
     
     
     ofVec2f xy_offset;
-    xy_offset.set(center_x_displace+ty,center_y_displace+ui);
+    xy_offset.set(d_center_x,d_center_y);
     shader_displace.setUniform2f("xy_offset",xy_offset);
     
     
@@ -316,12 +418,22 @@ void ofApp::draw() {
 			videoGrabber.getTextureReference().bind();
 		}
 		
-		if(inputswitch==1){
+	if(inputswitch==1){
 			
 		
-			cam1.getTexture().bind();
 			
+			
+		if(hdmi_aspect_ratio_switch==0){
+			cam1.getTexture().bind();
 		}
+			
+		if(hdmi_aspect_ratio_switch==1){
+			aspect_fix_fbo.getTexture().bind();
+		}
+			
+	
+			
+	}
     
   //  cam1.getTexture().bind();
     
@@ -333,7 +445,10 @@ void ofApp::draw() {
     glLineWidth(stroke_weight);
     
     ofPushMatrix();
-    ofTranslate(0,0,c7*480 +op);
+    
+    
+    
+    ofTranslate(0,0,d_zoom);
     //ofRotateXRad(rotate_x);
     if(wireframe_switch==0){
         vbo_mesh1.draw();
@@ -349,7 +464,14 @@ void ofApp::draw() {
 		}
 		
 		if(inputswitch==1){
-			cam1.getTexture().unbind();
+			
+			if(hdmi_aspect_ratio_switch==0){
+				cam1.getTexture().unbind();
+			}
+			
+			if(hdmi_aspect_ratio_switch==1){
+				aspect_fix_fbo.getTexture().unbind();
+			}
 		}
     
     
@@ -391,7 +513,8 @@ void ofApp::draw() {
     //each mesh has different scale ranges for optimizations
     //so just feed in c8+1 and rescale within
   
-	scale=(1.0-c8)*127+1.0 +scale_key;
+    
+	scale=d_scale;
 	
 	
 	if(scale>=127){scale=127;}
@@ -406,6 +529,11 @@ void ofApp::draw() {
     //ofDrawBitmapString(msg,10,height-10);
     
     
+    
+    if(p_lock_record_switch==1){
+        p_lock_increment++;
+        p_lock_increment=p_lock_increment%p_lock_size;
+    }
    
 }
 
@@ -851,11 +979,54 @@ void ofApp:: midibiz(){
                 
                
                 
+                if(message.control==60){
+                    if(message.value==127){
+                        p_lock_record_switch=1;
+                        // p_lock_increment=0;
+                        //cout<<"HEY"<<endl;
+                        
+                        for(int i=0;i<p_lock_number;i++){
+								p_lock_smoothed[i]=0;
+								for(int j=0;j<p_lock_size;j++){
+                                
+									p_lock[i][j]=p_lock[i][p_lock_increment];
+                                
+								}//endplocksize
+                            
+							}//endplocknumber
+                        
+                    }
+                    
+                    if(message.value==0){
+                        p_lock_record_switch=0;
+                    }
+                    
+                }
                 
+                if(message.control==58){
+                    if(message.value==127){
+                        for(int i=0;i<p_lock_number;i++){
+                            
+                            for(int j=0;j<p_lock_size;j++){
+                                
+                                p_lock[i][j]=0;
+                                
+                            }//endplocksize
+                            
+                        }//endplocknumber
+                        
+                        global_y_displace=global_x_displace=rotate_y=rotate_x=0;
+                        
+                        
+                    }
+                  
+                    
+                }
                 //nanokontrol2 controls
                 if(message.control==16){
                     //  c1=(message.value-63.0)/63.0;
                     c1=(message.value)/127.00;
+                    p_lock[0][p_lock_increment]=message.value/127.0f;
                     
                 }
                 
@@ -863,45 +1034,49 @@ void ofApp:: midibiz(){
                 if(message.control==17){
                      c2=(message.value-63.0)/63.0;
                     //c2=(message.value)/127.00;
-                    
+                    p_lock[1][p_lock_increment]=(message.value-63.0)/63.0;
                 }
                 
                 
                 if(message.control==18){
                     c3=(message.value-63.0)/63.00;
                     //  c3=(message.value)/127.00;
+                    p_lock[2][p_lock_increment]=(message.value-63.0)/63.0;
                 }
                 
                 
                 if(message.control==19){
                    // c4=(message.value-63.0)/63.00;
                      c4=(message.value)/127.00;
-                    
+                    p_lock[3][p_lock_increment]=message.value/127.0f;
                 }
                 
                 
                 if(message.control==20){
                     c5=(message.value-63.0)/63.00;
                     //  c5=(message.value)/127.00;
-                    
+                    p_lock[4][p_lock_increment]=(message.value-63.0)/63.0;
                 }
                 
                 
                 if(message.control==21){
                     c6=(message.value-63.0)/63.0;
                     // c6=(message.value)/127.00;
+                    p_lock[5][p_lock_increment]=(message.value-63.0)/63.0;
                 }
                 
                 
                 if(message.control==22){
                     c7=(message.value-63.0)/63.0;
                      //  c7=(message.value)/127.00;
+                     p_lock[6][p_lock_increment]=(message.value-63.0)/63.0;
                 }
                 
                 
                 if(message.control==23){
                     // c8=(message.value-63.0)/63.00;
                     c8=(message.value)/127.0;
+                    p_lock[7][p_lock_increment]=(message.value)/127.0;
                     
                     if(stroke_weight_switch==1){
 						stroke_weight=5*(message.value)/127.0;
@@ -954,10 +1129,13 @@ void ofApp:: midibiz(){
                 //so c9 and c10 will be multipurpose switches
                 if(message.control==120){
                     c9=(message.value-63.0)/63.0;
+                    
                     //c9=(message.value)/127.00;
                     
                     if(center_x_displace_switch==0){
 						center_x_displace=-960*c9;
+						
+						p_lock[8][p_lock_increment]=-960.0*(message.value-63.0)/63.0;
 						}
                     
                     if(global_x_displace_switch==0){
@@ -1020,10 +1198,12 @@ void ofApp:: midibiz(){
                 */
                 
                 if(message.control==121){
-                    c10=(message.value-63.0)/63.0;
+                   c10=(message.value-63.0)/63.0;
+                   
                    
                    if(center_y_displace_switch==0){
 						center_y_displace=-960*c10;
+						p_lock[9][p_lock_increment]=-960.0*(message.value-63.0)/63.0;
 						}
                     
                     if(global_y_displace_switch==0){
@@ -1044,6 +1224,8 @@ void ofApp:: midibiz(){
                     c11=.1*(message.value-63.0)/63.00;
                     //c11=(message.value)/127.00;
                     
+                    p_lock[10][p_lock_increment]=.1*(message.value-63.0)/63.0;
+                    
                     if(z_freq0==TRUE){
                         c11=(message.value-63.0)/63.0;
                     }
@@ -1056,12 +1238,14 @@ void ofApp:: midibiz(){
                 if(message.control==123){
                      c12=(message.value-63.0)/63.00;
                     //c12=(message.value)/127.00;
+                    p_lock[11][p_lock_increment]=(message.value-63.0)/63.0;
                     
                 }
                 
                 if(message.control==124){
                     c13=.1*(message.value-63.0)/63.00;
                     //c13=(message.value)/127.00;
+                    p_lock[12][p_lock_increment]=.1*(message.value-63.0)/63.0;
                     
                     if(x_freq0==TRUE){
                         c13=(message.value-63.0)/63.0;
@@ -1074,11 +1258,13 @@ void ofApp:: midibiz(){
                 
                 if(message.control==125){
                     c14=(message.value-63.0)/63.0;
+                    p_lock[13][p_lock_increment]=(message.value-63.0)/63.0;
                    // c14=(message.value)/127.00;
                 }
                 
                 if(message.control==126){
                     c15=.1*(message.value-63.0)/63.0;
+                    p_lock[14][p_lock_increment]=.1*(message.value-63.0)/63.0;
                     //c15=(message.value)/127.00;
                     
                     if(y_freq0==TRUE){
@@ -1091,6 +1277,7 @@ void ofApp:: midibiz(){
                 
                 if(message.control==127){
                     c16=(message.value-63.0)/63.00;
+                    p_lock[15][p_lock_increment]=(message.value-63.0)/63.0;
                     //c16=(message.value)/127.0;
                     
                 }
@@ -1397,19 +1584,20 @@ void ofApp:: midibiz(){
                 
                 if(message.control==62){
                     if(message.value==127){
-                        
-                        luma_switch=1;
+                        hdmi_aspect_ratio_switch=1;
+                        //luma_switch=1;
                     }
                     
                     if(message.value==0){
-                        
-                        luma_switch=0;
+                        hdmi_aspect_ratio_switch=0;
+                        //luma_switch=0;
                     }
                     
                 }
 
                 
-                
+                //add a reset switch for parameters
+                //and parameter locks dang it
                 
               
                 
